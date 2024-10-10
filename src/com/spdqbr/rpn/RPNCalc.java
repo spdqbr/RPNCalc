@@ -11,6 +11,8 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionEvent;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseWheelEvent;
@@ -78,8 +80,8 @@ public class RPNCalc extends JFrame implements KeyListener{
 		
 		JMenuBar menuBar = new JMenuBar();
         JMenu settingsMenu = new JMenu("Settings");
-        JMenuItem increaseFontSize = new JMenuItem("Increase Font Size (ctrl+'+'");
-        JMenuItem decreaseFontSize = new JMenuItem("Decrease Font Size (ctrl+'-'");
+        JMenuItem increaseFontSize = new JMenuItem("Increase Font Size (ctrl+'+')");
+        JMenuItem decreaseFontSize = new JMenuItem("Decrease Font Size (ctrl+'-')");
         JMenuItem resetFontSize = new JMenuItem("Reset Font Size");
 
         increaseFontSize.addActionListener(e -> changeFontSize(currentFontSize + 4));
@@ -91,11 +93,33 @@ public class RPNCalc extends JFrame implements KeyListener{
         settingsMenu.add(resetFontSize);
         menuBar.add(settingsMenu);
         
-        JMenuItem clearMenu = new JMenuItem("Clear");
+        JMenu hotkeys = new JMenu("Hotkeys");
+        JMenuItem negate = new JMenuItem("Negate (Down Arrow)");
+        negate.addActionListener(e -> negate());
+        hotkeys.add(negate);
+        
+        JMenuItem swap = new JMenuItem("Swap (Up Arrow)");
+        swap.addActionListener(e -> swap());
+        hotkeys.add(swap);
+        
+        JMenuItem moreDecimals = new JMenuItem("More Decimals (Left Arrow)");
+        moreDecimals.addActionListener(e -> moreDecimals());
+        hotkeys.add(moreDecimals);
+        
+        JMenuItem fewerDecimals = new JMenuItem("Fewer Decimals (Right Arrow)");
+        fewerDecimals.addActionListener(e -> fewerDecimals());
+        hotkeys.add(fewerDecimals);
+        
+        JMenuItem exponent = new JMenuItem("a^b (^)");
+        exponent.addActionListener(e -> exponent());
+        hotkeys.add(exponent);
+        
+        menuBar.add(hotkeys);
+        
+        JMenuItem clearMenu = new JMenuItem("Clear (c)");
         clearMenu.addActionListener(e -> clearStackAndInput());
         
         menuBar.add(clearMenu);
-        
         setJMenuBar(menuBar);
 		
 		JPanel panel = new JPanel(new BorderLayout());
@@ -108,6 +132,16 @@ public class RPNCalc extends JFrame implements KeyListener{
 			stackDisplay[i].setBackground(Color.BLACK);
 			stackDisplay[i].setHorizontalAlignment(SwingConstants.RIGHT);
 			stackDisplay[i].setBorder(BorderFactory.createEmptyBorder());
+			stackDisplay[i].addFocusListener(new FocusListener() {
+				// keep focus on input field
+			    @Override
+			    public void focusGained(FocusEvent e) {
+			        inputDisplay.requestFocusInWindow();
+			    }
+
+			    @Override
+			    public void focusLost(FocusEvent e) {}
+			});
 		}
 		
 		for(int i = 0; i < stackDisplay.length; i++) {
@@ -118,7 +152,6 @@ public class RPNCalc extends JFrame implements KeyListener{
 		scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
 		vertical = scrollPane.getVerticalScrollBar();
 		vertical.setValue(vertical.getMaximum());
-		
 		panel.add(scrollPane, BorderLayout.CENTER);
 		
 		inputDisplay = new JTextField();
@@ -339,6 +372,22 @@ public class RPNCalc extends JFrame implements KeyListener{
 		return null;
 	}
 	
+
+	
+	private void exponent() {
+		BigDecimal a, b;
+		if(!inputDisplay.getText().isBlank()) {
+			push();
+		}
+		a = pop();
+		b = pop();
+		exponent(a, b);
+	}
+	
+	private void exponent(BigDecimal a, BigDecimal b) {
+		push(b.pow(a.intValue())); //TODO: support bigdecimal pow
+	}
+	
 	@Override
 	public void keyTyped(KeyEvent e) {
 		BigDecimal a, b;
@@ -380,7 +429,7 @@ public class RPNCalc extends JFrame implements KeyListener{
 						case '-': push(b.subtract(a)); break;
 						case '*': push(b.multiply(a)); break;
 						case '/': push(b.divide(a, 16, RoundingMode.HALF_UP)); break;
-						case '^': push(b.pow(a.intValue())); break; //TODO: support bigdecimal pow
+						case '^': exponent(a, b); break;
 					}
 				}
 				inputDisplay.setText("");
@@ -407,45 +456,63 @@ public class RPNCalc extends JFrame implements KeyListener{
 	@Override
 	public void keyPressed(KeyEvent e) {}
 
+	private void negate() {
+		BigDecimal a;
+		if (inputDisplay.getText().isBlank()) {
+			if(stack.size() >= 1) {
+				a = pop();
+				push(BigDecimal.ZERO.subtract(a));
+			}
+		} else {
+			a = new BigDecimal(inputDisplay.getText());
+			a = BigDecimal.ZERO.subtract(a);
+			inputDisplay.setText(a.toString());					
+		}
+	}
+	
+	private void swap() {
+		BigDecimal a, b;
+		if (stack.size() >= 2) {
+			a = pop();
+			b = pop();
+			push(a);
+			push(b);
+		}
+	}
+	
+	private void moreDecimals() {
+		mantissa.append("#");
+		format = new DecimalFormat("#,###."+mantissa);
+		display();
+	}
+	
+	private void fewerDecimals() {
+		if(mantissa.length() > 1) {
+			mantissa.deleteCharAt(0);
+			format = new DecimalFormat("#,###."+mantissa);
+			display();
+		}
+	}
+	
 	@Override
 	public void keyReleased(KeyEvent e) {
 		BigDecimal a, b;
 		int code = e.getKeyCode();
 		switch(code) {
 			case 40: // Down arrow, negate
-				if (inputDisplay.getText().isBlank()) {
-					if(stack.size() >= 1) {
-						a = pop();
-						push(BigDecimal.ZERO.subtract(a));
-					}
-				} else {
-					a = new BigDecimal(inputDisplay.getText());
-					a = BigDecimal.ZERO.subtract(a);
-					inputDisplay.setText(a.toString());					
-				}
+				negate();
 				e.consume();
 				break;
 			case 38: // Up arrow, swap bottom two entries
-				if (stack.size() >= 2) {
-					a = pop();
-					b = pop();
-					push(a);
-					push(b);
-				}
+				swap();
 				e.consume();
 				break;
 			case 37: // Left arrow, add decimal places
-				mantissa.append("#");
-				format = new DecimalFormat("#,###."+mantissa);
-				display();
+				moreDecimals();
 				e.consume();
 				break;
 			case 39: // Right arrow, remove decimal places
-				if(mantissa.length() > 1) {
-					mantissa.deleteCharAt(0);
-					format = new DecimalFormat("#,###."+mantissa);
-					display();
-				}
+				fewerDecimals();
 				e.consume();
 				break;
 			case 33: // Page up
