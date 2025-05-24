@@ -472,11 +472,19 @@ public class RPNCalc extends JFrame implements KeyListener{
 	
 	private void swap() {
 		BigDecimal a, b;
-		if (stack.size() >= 2) {
-			a = pop();
-			b = pop();
-			push(a);
-			push(b);
+		if(!inputDisplay.getText().isBlank()) {
+			if(stack.size() >= 1) {
+				a = pop();
+				push();
+				inputDisplay.setText(a.toString());
+			}
+		}else {
+			if (stack.size() >= 2) {
+				a = pop();
+				b = pop();
+				push(a);
+				push(b);
+			}
 		}
 	}
 	
