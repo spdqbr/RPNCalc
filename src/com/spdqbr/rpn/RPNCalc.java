@@ -227,7 +227,16 @@ public class RPNCalc extends JFrame implements KeyListener{
 	        // Load window position
 	        String windowXStr = properties.getProperty("windowX", "100"); // Default x position
 	        String windowYStr = properties.getProperty("windowY", "100"); // Default y position
-	        setLocation(Integer.parseInt(windowXStr), Integer.parseInt(windowYStr));
+			
+			int windowX = Integer.parseInt(windowXStr);
+			int windowY = Integer.parseInt(windowYStr);
+			
+			Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+			if(windowX > screenSize.getWidth() || windowY > screenSize.getHeight()) {
+				windowX = 100;
+				windowY = 100;
+			}
+	        setLocation(windowX, windowY);
 	        
 	        // Load stack contents
 	        String stackStr = properties.getProperty("stack", "");
